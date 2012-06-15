@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#-*- coding: utf-8 -*-
 #
 # pyvericast - A Python interface to Vericast
 # Copyright (C) 2012 BMAT
@@ -20,9 +20,11 @@
 # USA
 #
 
+import os
 import urllib
 import urllib2
 from xml.dom import minidom
+from hashlib import md5
 
 
 __name__ = 'pycast'
@@ -35,6 +37,10 @@ __email__ = 'vericast-support@bmat.com'
 
 
 WS_SERVER = "localhost:8080"
+
+
+__cache_dir = None
+__cache_enabled = None
 
 
 class ServiceException(Exception):
@@ -81,10 +87,41 @@ class _Request(object):
         self._check_response_for_errors(response)
         return response
 
-    def execute(self):
+    def execute(self, cacheable=False):
         """Returns the XML DOM response from the server"""
-        response = self._download_response()
+        if is_caching_enabled() and cacheable:
+            response = self._get_cached_response()
+        else:
+            response = self._download_response()
         return minidom.parseString(response)
+
+    def _get_cache_key(self):
+        """Cache key"""
+        keys = list(self.params.keys())
+        keys.sort()
+        cache_key = str()
+        for key in keys:
+            cache_key += key + str(self.params[key])
+        return get_md5(cache_key)
+
+    def _is_cached(self):
+        """Returns True if the request is available in the cache."""
+        return os.path.exists(
+                os.path.join(_get_cache_dir(), self._get_cache_key()))
+
+    def _get_cached_response(self):
+        """Returns a file object of the cached response."""
+        print 'get_cached_response'
+        if not self._is_cached():
+            print 'set cache'
+            response = self._download_response()
+            response_file = open(
+                os.path.join(_get_cache_dir(), self._get_cache_key()), "w")
+            response_file.write(response)
+            response_file.close()
+        print 'get_cache'
+        return open(
+            os.path.join(_get_cache_dir(), self._get_cache_key()), "r").read()
 
     def _check_response_for_errors(self, response):
         """Checks the response for errors and raises one if any exists."""
@@ -104,11 +141,11 @@ class _BaseObject(object):
         self.username = username
         self.api_key = api_key
 
-    def _request(self, method_name, params=None):
+    def _request(self, method_name, cacheable=False, params=None):
         if not params:
             params = self._get_params()
         req = _Request(method_name, params, self.username, self.api_key)
-        return req.execute()
+        return req.execute(cacheable)
 
     def _get_params(self):
         return dict()
@@ -142,7 +179,7 @@ class Artist(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('artist.GetTopTracks', params)
+        doc = self._request('artist.GetTopTracks', False, params)
         tracks = []
         for track in doc.getElementsByTagName('track'):
             title = _extract(track, 'name')
@@ -160,7 +197,7 @@ class Artist(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('artist.GetTopChannels', params)
+        doc = self._request('artist.GetTopChannels', False, params)
         channels = []
         for track in doc.getElementsByTagName('channel'):
             keyname = _extract(track, 'keyname')
@@ -205,7 +242,7 @@ class Track(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('track.GetTopChannels', params)
+        doc = self._request('track.GetTopChannels', False, params)
         channels = []
         for track in doc.getElementsByTagName('channel'):
             keyname = _extract(track, 'keyname')
@@ -238,7 +275,7 @@ class Channel(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('charts.GetTopArtists', params)
+        doc = self._request('charts.GetTopArtists', False, params)
         artists = []
         for artist in doc.getElementsByTagName('artist'):
             name = _extract(artist, 'name')
@@ -254,7 +291,7 @@ class Channel(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('channel.GetTopTracks', params)
+        doc = self._request('channel.GetTopTracks', False, params)
         tracks = []
         for track in doc.getElementsByTagName('track'):
             title = _extract(track, 'name')
@@ -272,7 +309,7 @@ class Channel(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('channel.GetTopLabels', params)
+        doc = self._request('channel.GetTopLabels', False, params)
         labels = []
         for label in doc.getElementsByTagName('label'):
             name = _extract(label, 'name')
@@ -305,7 +342,7 @@ class Label(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('label.GetTopArtists', params)
+        doc = self._request('label.GetTopArtists', False, params)
         artists = []
         for artist in doc.getElementsByTagName('artist'):
             name = _extract(artist, 'name')
@@ -321,7 +358,7 @@ class Label(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('label.GetTopTracks', params)
+        doc = self._request('label.GetTopTracks', False, params)
         tracks = []
         for track in doc.getElementsByTagName('track'):
             title = _extract(track, 'name')
@@ -339,7 +376,7 @@ class Label(_BaseObject):
         params = self._get_params()
         params['start'] = _date(start)
         params['end'] = _date(end)
-        doc = self._request('label.GetTopChannels', params)
+        doc = self._request('label.GetTopChannels', False, params)
         channels = []
         for track in doc.getElementsByTagName('channel'):
             keyname = _extract(track, 'keyname')
@@ -450,3 +487,42 @@ def _number(string):
 
 def _date(date):
     return date.strftime('%Y%m%d')
+
+
+def enable_caching(cache_dir=None):
+    global __cache_dir
+    global __cache_enabled
+
+    if cache_dir == None:
+        import tempfile
+        __cache_dir = tempfile.mkdtemp()
+    else:
+        if not os.path.exists(cache_dir):
+            os.mkdir(cache_dir)
+        __cache_dir = cache_dir
+    __cache_enabled = True
+
+
+def disable_caching():
+    global __cache_enabled
+    __cache_enabled = False
+
+
+def is_caching_enabled():
+    """Returns True if caching is enabled."""
+    global __cache_enabled
+    return __cache_enabled
+
+
+def _get_cache_dir():
+    """Returns the directory in which cache files are saved."""
+    global __cache_dir
+    global __cache_enabled
+    return __cache_dir
+
+
+def get_md5(text):
+    """Returns the md5 hash of a string."""
+    hash = md5()
+    hash.update(text.encode('utf8'))
+    return hash.hexdigest()
