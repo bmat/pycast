@@ -112,15 +112,12 @@ class _Request(object):
 
     def _get_cached_response(self):
         """Returns a file object of the cached response."""
-        print 'get_cached_response'
         if not self._is_cached():
-            print 'set cache'
             response = self._download_response()
             response_file = open(
                 os.path.join(_get_cache_dir(), self._get_cache_key()), "w")
             response_file.write(response)
             response_file.close()
-        print 'get_cache'
         return open(
             os.path.join(_get_cache_dir(), self._get_cache_key()), "r").read()
 
