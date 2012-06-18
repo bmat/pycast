@@ -25,6 +25,7 @@ import urllib
 import urllib2
 from xml.dom import minidom
 from hashlib import md5
+import datetime
 
 
 __name__ = 'pycast'
@@ -73,7 +74,7 @@ class _Request(object):
             value = self.params[name]
             if isinstance(value, unicode):
                 value = value.encode('utf8')
-            data.append('='.join((name, urllib.quote_plus(value))))
+            data.append('='.join((name, urllib.quote_plus(str(value)))))
         data = '&'.join(data)
 
         headers = {
@@ -207,6 +208,22 @@ class Artist(_BaseObject):
                 playcount))
         return channels
 
+    def get_matches(self, start, end, page=1, limit=50):
+        """Return a list of matches starting from the start value
+           to the end value order by date
+        """
+        params = self._get_params()
+        params['start'] = _date(start)
+        params['end'] = _date(end)
+        params['page'] = _number(page)
+        params['limit'] = _number(limit)
+        doc = self._request('artist.GetMatches', False, params)
+        matches = []
+        for match in doc.getElementsByTagName('match'):
+            id = _extract(match, 'id')
+            matches.append(Match(id, self.username, self.api_key))
+        return matches
+
 
 class Track(_BaseObject):
     """A Vericast track"""
@@ -250,6 +267,22 @@ class Track(_BaseObject):
             channels.append(TopItem(
                 Channel(keyname, self.username, self.api_key), playcount))
         return channels
+
+    def get_matches(self, start, end, page=1, limit=50):
+        """Return a list of matches starting from the start value
+           to the end value order by date
+        """
+        params = self._get_params()
+        params['start'] = _date(start)
+        params['end'] = _date(end)
+        params['page'] = _number(page)
+        params['limit'] = _number(limit)
+        doc = self._request('track.GetMatches', False, params)
+        matches = []
+        for match in doc.getElementsByTagName('match'):
+            id = _extract(match, 'id')
+            matches.append(Match(id, self.username, self.api_key))
+        return matches
 
 
 class Channel(_BaseObject):
@@ -318,6 +351,22 @@ class Channel(_BaseObject):
                 Label(name, self.username, self.api_key), playcount))
         return labels
 
+    def get_matches(self, start, end, page=1, limit=50):
+        """Return a list of matches starting from the start value
+           to the end value order by date
+        """
+        params = self._get_params()
+        params['start'] = _date(start)
+        params['end'] = _date(end)
+        params['page'] = _number(page)
+        params['limit'] = _number(limit)
+        doc = self._request('channel.GetMatches', False, params)
+        matches = []
+        for match in doc.getElementsByTagName('match'):
+            id = _extract(match, 'id')
+            matches.append(Match(id, self.username, self.api_key))
+        return matches
+
 
 class Label(_BaseObject):
     """A Vericast label"""
@@ -385,6 +434,66 @@ class Label(_BaseObject):
                 Channel(keyname, self.username, self.api_key), playcount))
         return channels
 
+    def get_matches(self, start, end, page=1, limit=50):
+        """Return a list of matches starting from the start value
+           to the end value order by date
+        """
+        params = self._get_params()
+        params['start'] = _date(start)
+        params['end'] = _date(end)
+        params['page'] = _number(page)
+        params['limit'] = _number(limit)
+        doc = self._request('label.GetMatches', False, params)
+        matches = []
+        for match in doc.getElementsByTagName('match'):
+            id = _extract(match, 'id')
+            matches.append(Match(id, self.username, self.api_key))
+        return matches
+
+
+class Match(_BaseObject):
+    """A match"""
+
+    id = None
+
+    def __init__(self, id, username, api_key):
+        _BaseObject.__init__(self, username, api_key)
+        self.id = id
+
+    def __repr__(self):
+        return "pycast.Match(%s)" % self.id
+
+    def _get_params(self):
+        return {'match': self.id}
+
+    def get_id(self):
+        return id
+
+    def get_datetime(self):
+        """Returns the date when the track has matched"""
+        doc = self._request('match.GetInfo', True)
+        dt = _extract(doc, 'datetime')
+        return datetime.datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+
+    def get_channel(self):
+        """Returns the channel of the match"""
+        doc = self._request('match.GetInfo', True)
+        keyname = _extract(doc, 'channel')
+        return Channel(keyname, self.username, self.api_key)
+
+    def get_duration(self):
+        """Returns the duration of the match"""
+        doc = self._request('match.GetInfo', True)
+        duration = _extract(doc, 'duration')
+        return _number(duration)
+
+    def get_track(self):
+        """Returns the track of the match"""
+        doc = self._request('match.GetInfo', True)
+        track = _extract(doc, 'name')
+        artist = _extract(doc, 'name', 1)
+        return Track(artist, track, self.username, self.api_key)
+
 
 class Chart(_BaseObject):
     """A Vericast chart"""
@@ -401,7 +510,7 @@ class Chart(_BaseObject):
         self.end = end
 
     def __repr__(self):
-        return 'Charts from %s to %s' % (
+        return "pycast.Chart('%s', '%s')" % (
                 _date(self.start), _date(self.end))
 
     def _get_params(self):
