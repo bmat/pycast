@@ -37,11 +37,14 @@ __license__ = 'gpl'
 __email__ = 'vericast-support@bmat.com'
 
 
-WS_SERVER = "localhost:8080"
+WS_SERVER = "api.brubeck.bmat.srv/1/"
 
 
 __cache_dir = None
 __cache_enabled = None
+
+
+DAY, WEEK, MONTH = range(1, 4)
 
 
 class ServiceException(Exception):
@@ -65,7 +68,7 @@ class _Request(object):
         self.params = params
         self.params['user'] = username
         self.params['api'] = api_key
-        self.params['method'] = method_name
+        self.method = method_name
 
     def _download_response(self):
         """Returns a response body string from the server"""
@@ -83,7 +86,7 @@ class _Request(object):
             'User-Agent': __name__ + '/' + __version__
         }
         request = urllib2.Request(
-                'http://' + WS_SERVER + '?' + data, None, headers)
+            'http://' + WS_SERVER + self.method + '?' + data, None, headers)
         response = urllib2.urlopen(request).read()
         self._check_response_for_errors(response)
         return response
@@ -124,7 +127,7 @@ class _Request(object):
     def _check_response_for_errors(self, response):
         """Checks the response for errors and raises one if any exists."""
         doc = minidom.parseString(response)
-        e = doc.getElementsByTagName('vct')[0]
+        e = doc.getElementsByTagName('response')[0]
         if e.getAttribute('status') != "ok":
             e = doc.getElementsByTagName('error')[0]
             status = e.getAttribute('code')
@@ -170,14 +173,16 @@ class Artist(_BaseObject):
         """Returns the name of the artist."""
         return self.name
 
-    def get_top_tracks(self, start, end):
-        """Return a list of the top tracks starting from the
-           start value to the end value
-        """
+    def get_top_tracks(self, period=None, todate=None):
+        """Return a list of the top tracks"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('artist.GetTopTracks', False, params)
+        print 'aaaa->', period
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('artist/toptracks', False, params)
         tracks = []
         for track in doc.getElementsByTagName('track'):
             title = _extract(track, 'name')
@@ -188,14 +193,15 @@ class Artist(_BaseObject):
                 playcount))
         return tracks
 
-    def get_top_channels(self, start, end):
-        """Return a list of the top channels starting from the
-           start value to the end value
-        """
+    def get_top_channels(self, period=None, todate=None):
+        """Return a list of the top channels"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('artist.GetTopChannels', False, params)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('artist/topchannels', False, params)
         channels = []
         for track in doc.getElementsByTagName('channel'):
             keyname = _extract(track, 'keyname')
@@ -205,16 +211,17 @@ class Artist(_BaseObject):
                 playcount))
         return channels
 
-    def get_matches(self, start, end, page=1, limit=50):
-        """Return a list of matches starting from the start value
-           to the end value order by date
-        """
+    def get_matches(self, period=None, todate=None, page=1, limit=50):
+        """Return a list of matches order by date"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
         params['page'] = _number(page)
         params['limit'] = _number(limit)
-        doc = self._request('artist.GetMatches', False, params)
+        doc = self._request('artist/matches', False, params)
         matches = []
         for match in doc.getElementsByTagName('match'):
             id = _extract(match, 'id')
@@ -249,14 +256,15 @@ class Track(_BaseObject):
         """Returns the track title."""
         return self.title
 
-    def get_top_channels(self, start, end):
-        """Return a list of the top channels starting from
-           the start value to end value
-        """
+    def get_top_channels(self, period=None, todate=None):
+        """Return a list of the top channels"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('track.GetTopChannels', False, params)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('track/topchannels', False, params)
         channels = []
         for track in doc.getElementsByTagName('channel'):
             keyname = _extract(track, 'keyname')
@@ -265,16 +273,17 @@ class Track(_BaseObject):
                 Channel(keyname, self.username, self.api_key), playcount))
         return channels
 
-    def get_matches(self, start, end, page=1, limit=50):
-        """Return a list of matches starting from the start value
-           to the end value order by date
-        """
+    def get_matches(self, period=None, todate=None, page=1, limit=50):
+        """Return a list of matches order by date"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
         params['page'] = _number(page)
         params['limit'] = _number(limit)
-        doc = self._request('track.GetMatches', False, params)
+        doc = self._request('track/matches', False, params)
         matches = []
         for match in doc.getElementsByTagName('match'):
             id = _extract(match, 'id')
@@ -298,14 +307,15 @@ class Channel(_BaseObject):
     def get_keyname(self):
         return self.keyname
 
-    def get_top_artists(self, start, end):
-        """Return a list of the top artists starting
-           from start value to the end value
-        """
+    def get_top_artists(self, period=None, todate=None):
+        """Return a list of the top artists"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('charts.GetTopArtists', False, params)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('channel/topartists', False, params)
         artists = []
         for artist in doc.getElementsByTagName('artist'):
             name = _extract(artist, 'name')
@@ -314,14 +324,15 @@ class Channel(_BaseObject):
                 Artist(name, self.username, self.api_key), playcount))
         return artists
 
-    def get_top_tracks(self, start, end):
-        """Return a list of the top tracks starting from the
-           start value to the end value
-        """
+    def get_top_tracks(self, period=None, todate=None):
+        """Return a list of the top tracks"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('channel.GetTopTracks', False, params)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('channel/toptracks', False, params)
         tracks = []
         for track in doc.getElementsByTagName('track'):
             title = _extract(track, 'name')
@@ -332,14 +343,15 @@ class Channel(_BaseObject):
                 playcount))
         return tracks
 
-    def get_top_labels(self, start, end):
-        """Return a list of the top labels starting from the
-           start value to the end value
-        """
+    def get_top_labels(self, period=None, todate=None):
+        """Return a list of the top labels"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('channel.GetTopLabels', False, params)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('channel/toplabels', False, params)
         labels = []
         for label in doc.getElementsByTagName('label'):
             name = _extract(label, 'name')
@@ -348,16 +360,17 @@ class Channel(_BaseObject):
                 Label(name, self.username, self.api_key), playcount))
         return labels
 
-    def get_matches(self, start, end, page=1, limit=50):
-        """Return a list of matches starting from the start value
-           to the end value order by date
-        """
+    def get_matches(self, period=None, todate=None, page=1, limit=50):
+        """Return a list of matches order by date"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
         params['page'] = _number(page)
         params['limit'] = _number(limit)
-        doc = self._request('channel.GetMatches', False, params)
+        doc = self._request('channel/matches', False, params)
         matches = []
         for match in doc.getElementsByTagName('match'):
             id = _extract(match, 'id')
@@ -381,13 +394,14 @@ class Label(_BaseObject):
     def get_name(self):
         return self.name
 
-    def get_top_artists(self, start, end):
-        """Return a list of the top artists starting
-           from start value to the end value
-        """
+    def get_top_artists(self, period=None, todate=None):
+        """Return a list of the top artists"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
         doc = self._request('label.GetTopArtists', False, params)
         artists = []
         for artist in doc.getElementsByTagName('artist'):
@@ -397,14 +411,15 @@ class Label(_BaseObject):
                 Artist(name, self.username, self.api_key), playcount))
         return artists
 
-    def get_top_tracks(self, start, end):
-        """Return a list of the top tracks starting from the
-           start value to the end value
-        """
+    def get_top_tracks(self, period=None, todate=None):
+        """Return a list of the top tracks"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('label.GetTopTracks', False, params)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('label/toptracks', False, params)
         tracks = []
         for track in doc.getElementsByTagName('track'):
             title = _extract(track, 'name')
@@ -415,14 +430,15 @@ class Label(_BaseObject):
                 playcount))
         return tracks
 
-    def get_top_channels(self, start, end):
-        """Return a list of the top channels starting from
-           the start value to end value
-        """
+    def get_top_channels(self, period=None, todate=None):
+        """Return a list of the top channels"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
-        doc = self._request('label.GetTopChannels', False, params)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
+        doc = self._request('label/topchannels', False, params)
         channels = []
         for track in doc.getElementsByTagName('channel'):
             keyname = _extract(track, 'keyname')
@@ -431,16 +447,17 @@ class Label(_BaseObject):
                 Channel(keyname, self.username, self.api_key), playcount))
         return channels
 
-    def get_matches(self, start, end, page=1, limit=50):
-        """Return a list of matches starting from the start value
-           to the end value order by date
-        """
+    def get_matches(self, period=None, todate=None, page=1, limit=50):
+        """Return a list of matches order by date"""
+
         params = self._get_params()
-        params['start'] = _date(start)
-        params['end'] = _date(end)
+        if period:
+            params['period'] = _period(period)
+        if todate:
+            params['end'] = _date(todate)
         params['page'] = _number(page)
         params['limit'] = _number(limit)
-        doc = self._request('label.GetMatches', False, params)
+        doc = self._request('label/matches', False, params)
         matches = []
         for match in doc.getElementsByTagName('match'):
             id = _extract(match, 'id')
@@ -474,7 +491,7 @@ class Match(_BaseObject):
 
     def get_channel(self):
         """Returns the channel of the match"""
-        doc = self._request('match.GetInfo', True)
+        doc = self._request('match/info', True)
         keyname = _extract(doc, 'channel')
         return Channel(keyname, self.username, self.api_key)
 
@@ -495,23 +512,19 @@ class Match(_BaseObject):
 class Chart(_BaseObject):
     """A Vericast chart"""
 
-    def __init__(self, start, end, username, api_key):
-        """Create a chart object starting from the start value
-           to the end value
-           #Parametres:
-            * start date: Start date
-            * end date: End date
-        """
+    def __init__(self, period, todate, username, api_key):
+        """Create a chart object"""
+
         _BaseObject.__init__(self, username, api_key)
-        self.start = start
-        self.end = end
+        self.period = period
+        self.todate = todate
 
     def __repr__(self):
         return "pycast.Chart('%s', '%s')" % (
                 _date(self.start), _date(self.end))
 
     def _get_params(self):
-        return {'start': _date(self.start),
+        return {'period': _period(self.period),
                 'end': _date(self.end)}
 
     def get_start_date(self):
@@ -521,8 +534,9 @@ class Chart(_BaseObject):
         return self.end
 
     def get_top_artists(self):
-        """Return a list of the top artists starting"""
-        doc = self._request('charts.GetTopArtists')
+        """Return a list of the top artists"""
+
+        doc = self._request('charts/topartists')
         artists = []
         for artist in doc.getElementsByTagName('artist'):
             name = _extract(artist, 'name')
@@ -532,9 +546,9 @@ class Chart(_BaseObject):
         return artists
 
     def get_top_tracks(self):
-        """Return a list of the top tracks starting from the value
-        """
-        doc = self._request('charts.GetTopTracks')
+        """Return a list of the top tracks"""
+
+        doc = self._request('charts/toptracks')
         tracks = []
         for track in doc.getElementsByTagName('track'):
             title = _extract(track, 'name')
@@ -546,7 +560,8 @@ class Chart(_BaseObject):
 
     def get_top_labels(self):
         """Return a list of the top labels"""
-        doc = self._request('charts.GetTopLabels')
+
+        doc = self._request('charts/topLabels')
         labels = []
         for label in doc.getElementsByTagName('label'):
             name = _extract(label, 'name')
@@ -593,6 +608,16 @@ def _number(string):
 
 def _date(date):
     return date.strftime('%Y%m%d')
+
+
+def _period(period):
+    if period == DAY:
+        return 'day'
+    elif period == WEEK:
+        return 'week'
+    elif period == MONTH:
+        return 'month'
+    return 'week'
 
 
 def enable_caching(cache_dir=None):
