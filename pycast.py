@@ -29,7 +29,7 @@ import datetime
 
 
 __name__ = 'pycast'
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __doc__ = 'A Python interface to Vericast'
 __author__ = 'BMAT developers'
 __copyright__ = 'Copyright (C) 2012 BMAT'
@@ -37,7 +37,7 @@ __license__ = 'gpl'
 __email__ = 'vericast-support@bmat.com'
 
 
-WS_SERVER = "api.brubeck.bmat.srv/1/"
+WS_SERVER = "api.ramone.bmat.srv/1/"
 
 
 __cache_dir = None
@@ -85,6 +85,7 @@ class _Request(object):
             'Accept-Charset': 'utf-8',
             'User-Agent': __name__ + '/' + __version__
         }
+        print 'http://' + WS_SERVER + self.method + '?' + data
         request = urllib2.Request(
             'http://' + WS_SERVER + self.method + '?' + data, None, headers)
         response = urllib2.urlopen(request).read()
@@ -174,10 +175,9 @@ class Artist(_BaseObject):
         return self.name
 
     def get_top_tracks(self, period=None, todate=None):
-        """Return a list of the top tracks"""
+        """Returns a list of the top tracks for a given period"""
 
         params = self._get_params()
-        print 'aaaa->', period
         if period:
             params['period'] = _period(period)
         if todate:
@@ -194,7 +194,7 @@ class Artist(_BaseObject):
         return tracks
 
     def get_top_channels(self, period=None, todate=None):
-        """Return a list of the top channels"""
+        """Returns a list of the top channels for a given period"""
 
         params = self._get_params()
         if period:
@@ -212,7 +212,7 @@ class Artist(_BaseObject):
         return channels
 
     def get_matches(self, period=None, todate=None, page=1, limit=50):
-        """Return a list of matches order by date"""
+        """Returns a list of matches order by date for a given period"""
 
         params = self._get_params()
         if period:
@@ -257,7 +257,7 @@ class Track(_BaseObject):
         return self.title
 
     def get_top_channels(self, period=None, todate=None):
-        """Return a list of the top channels"""
+        """Returns a list of the top channels for a given period"""
 
         params = self._get_params()
         if period:
@@ -274,7 +274,7 @@ class Track(_BaseObject):
         return channels
 
     def get_matches(self, period=None, todate=None, page=1, limit=50):
-        """Return a list of matches order by date"""
+        """Returns a list of matches order by date"""
 
         params = self._get_params()
         if period:
@@ -307,8 +307,23 @@ class Channel(_BaseObject):
     def get_keyname(self):
         return self.keyname
 
+    def get_name(self):
+        """Returns the channel name"""
+        doc = self._request('channel/info', True)
+        return _extract(doc, 'name')
+
+    def get_website(self):
+        """Returns the website of channel"""
+        doc = self._request('channel/info', True)
+        return _extract(doc, 'website')
+
+    def get_media(self):
+        """Returns a channel media (Radio FM, Radio AM or TV)"""
+        doc = self._request('channel/info', True)
+        return _extract(doc, 'media')
+
     def get_top_artists(self, period=None, todate=None):
-        """Return a list of the top artists"""
+        """Returns a list of the top artists for a given period"""
 
         params = self._get_params()
         if period:
@@ -325,7 +340,7 @@ class Channel(_BaseObject):
         return artists
 
     def get_top_tracks(self, period=None, todate=None):
-        """Return a list of the top tracks"""
+        """Returns a list of the top tracks for a given period"""
 
         params = self._get_params()
         if period:
@@ -344,7 +359,7 @@ class Channel(_BaseObject):
         return tracks
 
     def get_top_labels(self, period=None, todate=None):
-        """Return a list of the top labels"""
+        """Returns a list of the top labels"""
 
         params = self._get_params()
         if period:
@@ -361,7 +376,7 @@ class Channel(_BaseObject):
         return labels
 
     def get_matches(self, period=None, todate=None, page=1, limit=50):
-        """Return a list of matches order by date"""
+        """Returns a list of matches order by date for a given period"""
 
         params = self._get_params()
         if period:
@@ -395,7 +410,7 @@ class Label(_BaseObject):
         return self.name
 
     def get_top_artists(self, period=None, todate=None):
-        """Return a list of the top artists"""
+        """Returns a list of the top artists"""
 
         params = self._get_params()
         if period:
@@ -412,7 +427,7 @@ class Label(_BaseObject):
         return artists
 
     def get_top_tracks(self, period=None, todate=None):
-        """Return a list of the top tracks"""
+        """Returns a list of the top tracks for a given period"""
 
         params = self._get_params()
         if period:
@@ -431,7 +446,7 @@ class Label(_BaseObject):
         return tracks
 
     def get_top_channels(self, period=None, todate=None):
-        """Return a list of the top channels"""
+        """Returns a list of the top channels for a given period"""
 
         params = self._get_params()
         if period:
@@ -448,7 +463,7 @@ class Label(_BaseObject):
         return channels
 
     def get_matches(self, period=None, todate=None, page=1, limit=50):
-        """Return a list of matches order by date"""
+        """Returns a list of matches order by date"""
 
         params = self._get_params()
         if period:
@@ -485,25 +500,25 @@ class Match(_BaseObject):
 
     def get_datetime(self):
         """Returns the date when the track has matched"""
-        doc = self._request('match.GetInfo', True)
+        doc = self._request('match/info', True)
         dt = _extract(doc, 'datetime')
         return datetime.datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
 
     def get_channel(self):
         """Returns the channel of the match"""
         doc = self._request('match/info', True)
-        keyname = _extract(doc, 'channel')
+        keyname = _extract(doc, 'keyname')
         return Channel(keyname, self.username, self.api_key)
 
     def get_duration(self):
         """Returns the duration of the match"""
-        doc = self._request('match.GetInfo', True)
+        doc = self._request('match/info', True)
         duration = _extract(doc, 'duration')
         return _number(duration)
 
     def get_track(self):
         """Returns the track of the match"""
-        doc = self._request('match.GetInfo', True)
+        doc = self._request('match.info', True)
         track = _extract(doc, 'name')
         artist = _extract(doc, 'name', 1)
         return Track(artist, track, self.username, self.api_key)
@@ -534,7 +549,7 @@ class Chart(_BaseObject):
         return self.end
 
     def get_top_artists(self):
-        """Return a list of the top artists"""
+        """Returns a list of the top artists"""
 
         doc = self._request('charts/topartists')
         artists = []
@@ -546,7 +561,7 @@ class Chart(_BaseObject):
         return artists
 
     def get_top_tracks(self):
-        """Return a list of the top tracks"""
+        """Returns a list of the top tracks"""
 
         doc = self._request('charts/toptracks')
         tracks = []
@@ -559,7 +574,7 @@ class Chart(_BaseObject):
         return tracks
 
     def get_top_labels(self):
-        """Return a list of the top labels"""
+        """Returns a list of the top labels"""
 
         doc = self._request('charts/topLabels')
         labels = []
@@ -582,11 +597,11 @@ class TopItem(object):
                 ", Weight: " + str(self.get_weight()))
 
     def get_item(self):
-        """Return the item"""
+        """Returns the item"""
         return self.item
 
     def get_weight(self):
-        """Return the weight of the item in the list"""
+        """Returns the weight of the item in the list"""
         return self.weight
 
 
@@ -624,7 +639,7 @@ def enable_caching(cache_dir=None):
     global __cache_dir
     global __cache_enabled
 
-    if cache_dir == None:
+    if cache_dir is None:
         import tempfile
         __cache_dir = tempfile.mkdtemp()
     else:
