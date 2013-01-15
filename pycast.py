@@ -25,7 +25,7 @@ import urllib
 import urllib2
 from xml.dom import minidom
 from hashlib import md5
-import datetime
+from dateutil.parser import parse as parse_date
 
 
 __name__ = 'pycast'
@@ -85,7 +85,6 @@ class _Request(object):
             'Accept-Charset': 'utf-8',
             'User-Agent': __name__ + '/' + __version__
         }
-        print 'http://' + WS_SERVER + self.method + '?' + data
         request = urllib2.Request(
             'http://' + WS_SERVER + self.method + '?' + data, None, headers)
         response = urllib2.urlopen(request).read()
@@ -417,7 +416,7 @@ class Label(_BaseObject):
             params['period'] = _period(period)
         if todate:
             params['end'] = _date(todate)
-        doc = self._request('label.GetTopArtists', False, params)
+        doc = self._request('label/topartists', False, params)
         artists = []
         for artist in doc.getElementsByTagName('artist'):
             name = _extract(artist, 'name')
@@ -502,7 +501,7 @@ class Match(_BaseObject):
         """Returns the date when the track has matched"""
         doc = self._request('match/info', True)
         dt = _extract(doc, 'datetime')
-        return datetime.datetime.strptime(dt, '%Y-%m-%d %H:%M:%S')
+        return parse_date(dt)
 
     def get_channel(self):
         """Returns the channel of the match"""
@@ -536,17 +535,11 @@ class Chart(_BaseObject):
 
     def __repr__(self):
         return "pycast.Chart('%s', '%s')" % (
-                _date(self.start), _date(self.end))
+                _period(self.period), _date(self.todate))
 
     def _get_params(self):
         return {'period': _period(self.period),
-                'end': _date(self.end)}
-
-    def get_start_date(self):
-        return self.start
-
-    def get_end_date(self):
-        return self.end
+                'end': _date(self.todate)}
 
     def get_top_artists(self):
         """Returns a list of the top artists"""
@@ -576,7 +569,7 @@ class Chart(_BaseObject):
     def get_top_labels(self):
         """Returns a list of the top labels"""
 
-        doc = self._request('charts/topLabels')
+        doc = self._request('charts/toplabels')
         labels = []
         for label in doc.getElementsByTagName('label'):
             name = _extract(label, 'name')
