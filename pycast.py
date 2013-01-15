@@ -563,7 +563,7 @@ class Chart(_BaseObject):
             artist = _extract(track, 'name', 1)
             playcount = _number(_extract(track, 'playcount'))
             tracks.append(TopItem(
-                Track(artist, title, self.username, self.api_key, playcount)))
+                Track(artist, title, self.username, self.api_key), playcount))
         return tracks
 
     def get_top_labels(self):
